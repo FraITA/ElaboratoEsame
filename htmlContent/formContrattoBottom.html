@@ -1,0 +1,42 @@
+</select>
+				</div>
+			</div>
+			
+			<div class="row">
+				<div class="col-3"> <label for="tipo_pag"> Tipo pagamento: </label> </div>
+				<div class="col-3"> 
+					<select required id="tipo_pag" name="tipo_pag" onchange="toggleForm(this.value)">
+						<option value="Carta credito"> Carta credito </option>
+						<option value="Conto corrente"> Conto corrente </option>
+					</select> 
+				</div>
+			</div>
+			
+			<div id="form_carta">
+				<div class="row">
+					<div class="col-3"> <label for="carta_cred"> Numero carta di credito: </label> </div>
+					<div class="col-3"> <input required id="carta_cred" name="carta_cred" pattern="[0-9]{16}" /> </div>
+				</div>
+
+				<div class="row">
+					<div class="col-3"> <label for="cod_cred"> Codice carta di credito (3 numeri sul retro): </label> </div>
+					<div class="col-3"> <input required id="cod_cred" name="cod_cred" type="text" pattern="[0-9]{3}" /> </div>
+				</div>
+				
+				<div class="row">
+					<div class="col-3"> <label for="data_scad"> Data scadenza carta di credito: </label> </div>
+					<div class="col-3"> <input required id="data_scad" name="data_scad" type="month" /> </div>
+				</div>
+			</div>
+			
+			<div id="form_conto" style="display: none;">
+				<div class="row">
+					<div class="col-3"> <label for="iban"> IBAN: </label> </div>
+					<div class="col-3"> <input id="iban" name="iban" pattern="[A-Z0-9]{20,50}" /> </div>
+				</div>
+			</div>
+			
+			<div class='row'>
+					<div class='col-3'> <input type='submit' value='Effettua richiesta' name='submit'> </div>
+			</div>
+		</form>
