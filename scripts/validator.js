@@ -105,7 +105,7 @@ function validate_email(string){
 }
 
 function validate_tel(string){
-	var letters = /^[0-9]{3}\-[0-9]{3}\-[0-9]{4}$/s;
+	var letters = /^[0-9]{10}$/s;
 
 	return(letters.test(string));
 }

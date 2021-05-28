@@ -169,10 +169,53 @@ class GestoreDB {
 
 		$value = strip_tags($value);
 
-		if(get_magic_quotes_gpc()){
-			$value = stripslashes($value);
+		return $value;
+	}
+	
+	private function val_input($tipo, $value){
+		switch($tipo){
+			case "email":
+				if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+					die("Formato email non valido!");
+				}
+				break;
+			case "text":
+				if(!preg_match("/^[A-Za-zòàèù ]*$/", $value)){
+					die("Formato testo non valido!");
+				}
+				break;
+			case "number":
+				if(!preg_match("/^[0-9]*$/", $value)){
+					die("Formato numero non valido!");
+				}
+				break;
+			case "alphanumeric":
+				if(!preg_match("/^[A-Za-zòàèù0-9]*$/", $value)){
+					die("Formato alfanumerico non valido!");
+				}
+				break;
+			case "date":
+				if(!preg_match("/^[0-9]{4}\-[0-9]{2}\-[0-9]{2}$/", $value)){
+					die("Formato data non valido");
+				}
+				break;
+			case "num_civ":
+				if(!preg_match("/^[0-9A-Z\/]+$/", $value)){
+					die("Formato numero civico non valido");
+				}
+				break;
+			case "num_carta":
+				if(!preg_match("/^[0-9]{16}$/", $value)){
+					die("Formato numero carta di credito non valido");
+				}
+				break;
+			case "cod_carta":
+				if(!preg_match("/^[0-9]{3}$/", $value)){
+					die("Formato codice carta di credito non valido");
+				}
+				break;
 		}
-
+		
 		return $value;
 	}
 	
@@ -223,6 +266,10 @@ class GestoreDB {
 	//ottengo tutti i pagamenti di un certo cliente in un certo servizio
 	public function getPagamenti(){
 		
+		$value = $this->clean_input($_GET["servizio"]);
+		
+		$value = $this->val_input("number", $value);
+		
 		session_start();
 		
 		$connessione = $this->connetti();
@@ -238,7 +285,7 @@ class GestoreDB {
 					FROM servizio, consumo, contratto, contatore
 
 					WHERE contratto.id_cliente = ' . $_SESSION["id"] . '
-					AND contratto.id_serv = ' . $_GET["servizio"] . '
+					AND contratto.id_serv = ' . $value . '
 					AND contratto.id_contatore = consumo.id_contatore
 					AND servizio.id_serv = contratto.id_serv
 					AND contatore.id_contatore = contratto.id_contatore
@@ -273,9 +320,13 @@ class GestoreDB {
 	private function mediaConsumi(){
 		$connessione = $this->connetti();
 		
+		$value = $this->clean_input($_GET["servizio"]);
+		
+		$value = $this->val_input("number", $value);
+		
 		$query	=	'SELECT ROUND(AVG(consumo.cons_totale)) AS consumi_medi FROM consumo, contratto
 					WHERE contratto.id_cliente = ' . $_SESSION["id"] . '
-					AND contratto.id_serv = ' . $_GET["servizio"] . '
+					AND contratto.id_serv = ' . $value . '
 					AND contratto.id_contatore = consumo.id_contatore';
 		
 		$response = $connessione->query($query);
@@ -314,24 +365,37 @@ class GestoreDB {
 			$value = $this->clean_input($value); //Sanificazione input
 		}
 		
-		$cod_fis	= $_POST["cod_fis"];
-		$nome		= $_POST["nome"];
-		$cognome	= $_POST["cognome"];
-		$email		= $_POST["email"];
-		$telefono	= $_POST["telefono"];
-		$via		= $_POST["indirizzo"];
-		$num_civ	= $_POST["num_civ"];
-		$comune		= $_POST["comune"];
-		$provincia	= $_POST["provincia"];
-		$data_nasc	= $_POST["data_nasc"];
+		$cod_fis	= $this->val_input("alphanumeric", $_POST["cod_fis"]);
+		$nome		= $this->val_input("text", $_POST["nome"]);
+		$cognome	= $this->val_input("text", $_POST["cognome"]);
+		$email		= $this->val_input("email", $_POST["email"]);
+		$telefono	= $this->val_input("number", $_POST["telefono"]);
+		$via		= $this->val_input("text", $_POST["indirizzo"]);
+		$num_civ	= $this->val_input("num_civ", $_POST["num_civ"]);
+		$comune		= $this->val_input("text", $_POST["comune"]);
+		$provincia	= $this->val_input("text", $_POST["provincia"]);
+		$data_nasc	= $this->val_input("date", $_POST["data_nasc"]);
 		$pw			= sha1($_POST["password"]);
 		
 		$connessione = $this->connetti();
 		
 		$query = 'INSERT INTO cliente (id_cliente, cod_fis, nome, cognome, email, telefono, via, num_civ, comune, provincia, data_nasc, password)';
-		$query .='VALUES(NULL,"'.$cod_fis.'","'.$nome.'","'.$cognome.'","'.$email.'","'.$telefono.'","'.$via.'","'.$num_civ.'","'.$comune.'","'.$provincia.'","'.$data_nasc.'","'.$pw.'")';
+		$query .='VALUES(NULL, :cod_fis, :nome, :cognome, :email, :telefono, :via, :num_civ, :comune, :provincia, :data_nasc, :password)';
 		
-		$connessione->exec($query);
+		$sql = $connessione->prepare($query);
+		$sql->bindParam(":cod_fis", $cod_fis);
+		$sql->bindParam(":nome", $nome);
+		$sql->bindParam(":cognome", $cognome);
+		$sql->bindParam(":email", $email);
+		$sql->bindParam(":telefono", $telefono);
+		$sql->bindParam(":via", $via);
+		$sql->bindParam(":num_civ", $num_civ);
+		$sql->bindParam(":comune", $comune);
+		$sql->bindParam(":provincia", $provincia);
+		$sql->bindParam(":data_nasc", $data_nasc);
+		$sql->bindParam(":password", $pw);
+		
+		$sql->execute();
 		
 		header("Location: login.php");
 		
@@ -361,7 +425,7 @@ class GestoreDB {
 				unset($_SESSION["tempoInizio"]);
 			}
 		}
-		$email = $_POST["email"];
+		$email = $this->val_input("email", $_POST["email"]);
 		$pw = sha1($_POST["password"]);
 		
 		$connessione = $this->connetti();
@@ -428,27 +492,44 @@ class GestoreDB {
 		}
 		
 		$id_cliente = $_SESSION["id"];
-		$id_serv	= $_POST["servizio"];
-		$tipo_pag	= $_POST["tipo_pag"];
-		
-		//eseguo una certa query a seconda di che dati sono arrivati
-		if($tipo_pag == "Carta credito"){
-			$carta_cred = $_POST["carta_cred"];
-			$cod_cred = $_POST["cod_cred"];
-			$data_scad = $_POST["data_scad"];
-			
-			$query = 'INSERT INTO contratto (id_cliente, id_contatore, id_serv, tipo_pag, carta_cred, cod_cred, data_scad)';
-			$query .='VALUES("'.$id_cliente.'",NULL,"'.$id_serv.'", "'.$tipo_pag.'" , "'.$carta_cred.'","'.$cod_cred.'","'.$data_scad.'")';
-		}else{
-			$iban = $_POST["iban"];
-			$query = 'INSERT INTO contratto (id_cliente, id_contatore, id_serv, tipo_pag, iban)';
-			$query .='VALUES("'.$id_cliente.'",NULL,"'.$id_serv.'", "'.$tipo_pag.'" , "'.$iban.'")';
-		}
+		$id_serv	= $this->val_input("number", $_POST["servizio"]);
+		$tipo_pag	= $this->val_input("text", $_POST["tipo_pag"]);
 		
 		$connessione = $this->connetti();
 		
+		//eseguo una certa query a seconda di che dati sono arrivati
+		if($tipo_pag == "Carta credito"){
+			$carta_cred = $this->val_input("carta_cred", $_POST["carta_cred"]);
+			$cod_cred = $this->val_input("cod_cred", $_POST["cod_cred"]);
+			$data_scad = $this->val_input("date", $_POST["data_scad"]."-01");
+			
+			$query = 'INSERT INTO contratto (id_cliente, id_serv, tipo_pag, carta_cred, cod_cred, data_scad)';
+			$query .='VALUES(:id_cliente, :id_serv, :tipo_pag, :carta_cred, :cod_cred, :data_scad)';
+			
+			$sql = $connessione->prepare($query);
+			$sql->bindParam(":id_cliente", $id_cliente);
+			$sql->bindParam(":id_serv", $id_serv);
+			$sql->bindParam(":tipo_pag", $tipo_pag);
+			$sql->bindParam(":carta_cred", $carta_cred);
+			$sql->bindParam(":cod_cred", $cod_cred);
+			$sql->bindParam(":data_scad", $data_scad);
+			
+			
+		}else{
+			$iban = $this->val_input("alphanumeric", $_POST["iban"]);
+			
+			$query = 'INSERT INTO contratto (id_cliente, id_serv, tipo_pag, iban)';
+			$query .='VALUES(:id_cliente, :id_serv, :tipo_pag, :iban)';
+			
+			$sql = $connessione->prepare($query);
+			$sql->bindParam(":id_cliente", $id_cliente);
+			$sql->bindParam(":id_serv", $id_serv);
+			$sql->bindParam(":tipo_pag", $tipo_pag);
+			$sql->bindParam(":iban", $iban);
+		}
+		
 		//inserisco i dati nel DB
-		$connessione->exec($query);
+		$sql->execute();
 		
 		echo("Contratto stipulato!");
 		$this->mostraHomePage();
@@ -456,8 +537,13 @@ class GestoreDB {
 	
 	//Metodo che modifica il livello attuale di una certa cisterna
 	public function modificaLivello(){
-		$livello = $_GET["livello"];
-		$id_cisterna = $_GET["id_cisterna"];
+		
+		foreach($_GET as $key => $value){
+			$value = $this->clean_input($value); //Sanificazione input
+		}
+		
+		$livello = $this->val_input("number", $_GET["livello"]);
+		$id_cisterna = $this->val_input("number", $_GET["id_cisterna"]);
 		
 		$connessione = $this->connetti();
 		
@@ -470,14 +556,25 @@ class GestoreDB {
 	
 	//Metodo che crea un nuovo record con il pagamento effettuato automaticamente alla consegna
 	public function effettuaConsumo(){
-		$id_contatore = $_GET["id_contatore"];
-		$cons_totale = $_GET["cons_totale"];
-		$data = $_GET["data"];
+		
+		foreach($_GET as $key => $value){
+			$value = $this->clean_input($value); //Sanificazione input
+		}
+		
+		$id_contatore = $this->val_input("number", $_GET["id_contatore"]);
+		$cons_totale = $this->val_input("number", $_GET["cons_totale"]);
+		$data = $this->val_input("date", $_GET["data"]);
 		
 		$connessione = $this->connetti();
 		
 		$query = 'INSERT INTO consumo (id_consumo, id_contatore, cons_totale, data)';
-		$query .='VALUES(NULL,'.$id_contatore.', '.$cons_totale.', "'.$data.'")';
+		$query .='VALUES(NULL,:id_contatore, :cons_totale, :data)';
+		
+		$sql = $connessione->prepare($query);
+		$sql->bindParam(":id_contatore", $id_contatore);
+		$sql->bindParam(":cons_totale", $cons_totale);
+		$sql->bindParam(":data", $data);
+		
 		
 		$connessione->exec($query);
 		
@@ -579,6 +676,7 @@ class GestoreDB {
 						 PRIMARY KEY (id_consumo));
 
 						CREATE TABLE IF NOT EXISTS contratto ( 
+							id_contratto INT(10) NOT NULL AUTO_INCREMENT,
 							id_cliente INT(10) NOT NULL
 							id_contatore INT(10) NULL , 
 							id_serv INT(10) NOT NULL ,
@@ -588,7 +686,7 @@ class GestoreDB {
 							carta_cred VARCHAR(16) NULL DEFAULT NULL , 
 							cod_cred VARCHAR(3) NULL DEFAULT NULL , 
 							data_scad DATE NULL DEFAULT NULL ,
-							PRIMARY KEY(id_cliente, id_serv));
+							PRIMARY KEY(id_contratto));
 
 						CREATE TABLE IF NOT EXISTS cisterna (
 							id_cisterna INT(10) NOT NULL,
@@ -599,7 +697,20 @@ class GestoreDB {
 							comune VARCHAR(30) NOT NULL,
 							provincia VARCHAR(30) NOT NULL,
 							PRIMARY KEY(id_cisterna)
-						)
+						);
+						
+						CREATE TABLE IF NOT EXISTS richiesta (
+							id_richiesta INT(10) NOT NULL,
+							via VARCHAR(30) NOT NULL,
+							num_civ VARCHAR(10) NOT NULL,
+							comune VARCHAR(30) NOT NULL,
+							provincia VARCHAR(30) NOT NULL,
+							data DATE NOT NULL,
+							effettuato BOOLEAN NOT NULL,
+							id_cliente INT(10) NOT NULL,
+							id_serv INT(10) NOT NULL,
+							PRIMARY KEY(id_richiesta)
+						);
 
 						ALTER TABLE contatore ADD CONSTRAINT "È posseduto da" FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE CASCADE ON UPDATE CASCADE; 
 
@@ -616,7 +727,10 @@ class GestoreDB {
 						ALTER TABLE contratto ADD CONSTRAINT "Stipula" FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE CASCADE ON UPDATE CASCADE;
 						ALTER TABLE contratto ADD CONSTRAINT "Viene collegato" FOREIGN KEY (id_contatore) REFERENCES contatore(id_contatore) ON DELETE CASCADE ON UPDATE CASCADE; 
 						ALTER TABLE contratto ADD CONSTRAINT "Fornisce" FOREIGN KEY (id_serv) REFERENCES servizio(id_serv) ON DELETE CASCADE ON UPDATE CASCADE;
-						ALTER TABLE contratto ADD CONSTRAINT "Viene collegato 2" FOREIGN KEY (id_cisterna) REFERENCES cisterna(id_cisterna) ON DELETE CASCADE ON UPDATE CASCADE;';
+						ALTER TABLE contratto ADD CONSTRAINT "Viene collegato 2" FOREIGN KEY (id_cisterna) REFERENCES cisterna(id_cisterna) ON DELETE CASCADE ON UPDATE CASCADE;
+						
+						ALTER TABLE richiesta ADD CONSTRAINT "Richiede" FOREIGN KEY (id_serv) REFERENCES servizio(id_serv) ON DELETE CASCADE ON UPDATE CASCADE; 
+						ALTER TABLE richiesta ADD CONSTRAINT "È richiesto" da FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE CASCADE ON UPDATE CASCADE;';
 			$connection->exec($queryDB);
 		}catch(PDOException $e){
 			//Se ci sono eccezioni, mostro il messaggio d'errore
