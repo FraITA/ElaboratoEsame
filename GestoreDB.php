@@ -13,6 +13,8 @@
  */
 class GestoreDB {
 	
+	//Tutti i metodi che iniziano con "mostra" servono per stampare a schermo certi tag HTML e valori, o per leggere file HTML
+	
 	private function mostraTesta($titolo){
 		$head=file("htmlContent/headTop.html"); //leggo il file che contiene la parte di mezzo della mia pagina web
 		foreach ( $head as $row ) {
@@ -41,6 +43,7 @@ class GestoreDB {
 		$data = $this->getLivelli();
 		
 		foreach($data as $row){
+			//Nel caso la cisterna ha un livello minore ad un terzo della capacità, mostra nella home page un messaggio di warning
 			if($row["livello"]<($row["capacita"]/3)){
 				echo("<p style='color: red'> Cisterna situata a " . $row["via"] . ' ' . $row["num_civ"] . ', ' . $row["comune"] . ', ' . $row["provincia"] . " con livello inferiore a " . $row["capacita"]/3 . " litri su " . $row["capacita"] . " (" . $row["livello"] . " litri)  </p>");
 			}
@@ -172,6 +175,7 @@ class GestoreDB {
 		return $value;
 	}
 	
+	//Valida gli input dato il tipo di input per cui validarlo e il valore dell'input stesso come argomento
 	private function val_input($tipo, $value){
 		switch($tipo){
 			case "email":
@@ -317,6 +321,7 @@ class GestoreDB {
 		echo("</table>");
 	}
 	
+	//Mostra la media dei consumi di un dato servizio
 	private function mediaConsumi(){
 		$connessione = $this->connetti();
 		
@@ -359,12 +364,15 @@ class GestoreDB {
 		return $data;
 	}
 	
-	//effettuo la registrazione
+	//Effettuo la registrazione
 	public function registra(){
+		
+		//Sanificazione input
 		foreach($_POST as $key => $value){
 			$value = $this->clean_input($value); //Sanificazione input
 		}
 		
+		//Inserisco tutti i dati in variabili dopo la validazione degli stessi
 		$cod_fis	= $this->val_input("alphanumeric", $_POST["cod_fis"]);
 		$nome		= $this->val_input("text", $_POST["nome"]);
 		$cognome	= $this->val_input("text", $_POST["cognome"]);
@@ -377,12 +385,15 @@ class GestoreDB {
 		$data_nasc	= $this->val_input("date", $_POST["data_nasc"]);
 		$pw			= sha1($_POST["password"]);
 		
+		//effettuo la connessione al database
 		$connessione = $this->connetti();
 		
 		$query = 'INSERT INTO cliente (id_cliente, cod_fis, nome, cognome, email, telefono, via, num_civ, comune, provincia, data_nasc, password)';
 		$query .='VALUES(NULL, :cod_fis, :nome, :cognome, :email, :telefono, :via, :num_civ, :comune, :provincia, :data_nasc, :password)';
 		
+		//preparo la query
 		$sql = $connessione->prepare($query);
+		//Per ogni "segnaposto" nella query, faccio riferimento ad una specifica variabile
 		$sql->bindParam(":cod_fis", $cod_fis);
 		$sql->bindParam(":nome", $nome);
 		$sql->bindParam(":cognome", $cognome);
@@ -395,6 +406,7 @@ class GestoreDB {
 		$sql->bindParam(":data_nasc", $data_nasc);
 		$sql->bindParam(":password", $pw);
 		
+		//Eseguo la query
 		$sql->execute();
 		
 		header("Location: login.php");
@@ -456,7 +468,7 @@ class GestoreDB {
 		//Se il login è fallito
 		$connessione = null;
 		
-		//Controll ose ha sbagliato 3 volte e aumento il counter
+		//Controllo se ha sbagliato 3 volte e aumento il counter
 		$this->controllaTentativi();
 		
 		//mostro messaggio di errore
@@ -731,7 +743,7 @@ class GestoreDB {
 						
 						ALTER TABLE richiesta ADD CONSTRAINT "Richiede" FOREIGN KEY (id_serv) REFERENCES servizio(id_serv) ON DELETE CASCADE ON UPDATE CASCADE; 
 						ALTER TABLE richiesta ADD CONSTRAINT "È richiesto" da FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE CASCADE ON UPDATE CASCADE;';
-			$connection->exec($queryDB);
+			$connection->exec($queryDB); //Creo le tabelle nel DB nel caso non ci siano già
 		}catch(PDOException $e){
 			//Se ci sono eccezioni, mostro il messaggio d'errore
 			echo("Connection error: ".$e->getMessage());
